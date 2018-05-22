@@ -20,6 +20,7 @@ import java.util.Collection;
 public class WifiP2pAdmin {
 
     public interface ChannelCallback {
+
         void onCreateGroup(boolean success);
 
         void onRemoveGroup(boolean success);
@@ -29,14 +30,37 @@ public class WifiP2pAdmin {
 
     public interface PeerCallback {
 
+        /**
+         * P2p状态改变
+         *
+         * @param enabled 是否可用
+         */
         void onStateChanged(boolean enabled);
 
+        /**
+         * 对等点列表改变，可调用requestPeers
+         */
         void onPeersChanged();
 
+        /**
+         * 连接状态改变，如networkInfo.isConnected()，可调用requestConnectionInfo
+         *
+         * @param networkInfo 连接信息
+         */
         void onConnectionChanged(NetworkInfo networkInfo);
 
+        /**
+         * 获取对等点信息，可展示到页面
+         *
+         * @param devices 设备列表
+         */
         void onPeersAvailable(Collection<WifiP2pDevice> devices);
 
+        /**
+         * 连接信息可用，可判断info.groupFormed && info.isGroupOwner启动socket
+         *
+         * @param info 对等点信息
+         */
         void onConnectionInfoAvailable(WifiP2pInfo info);
     }
 
