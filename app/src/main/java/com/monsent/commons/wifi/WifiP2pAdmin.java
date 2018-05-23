@@ -33,9 +33,23 @@ public class WifiP2pAdmin {
         /**
          * P2p状态改变
          *
-         * @param enabled 是否可用
+         * @param state 状态：WifiP2pManager.WIFI_P2P_STATE_ENABLED
          */
-        void onStateChanged(boolean enabled);
+        void onStateChanged(int state);
+
+        /**
+         * 发现对等点
+         *
+         * @param state 状态： WifiP2pManager.WIFI_P2P_DISCOVERY_STARTED
+         */
+        void onDiscoveryChanged(int state);
+
+        /**
+         * 设备改变
+         *
+         * @param device 对等点设备
+         */
+        void onThisDeviceChanged(WifiP2pDevice device);
 
         /**
          * 对等点列表改变，可调用requestPeers
@@ -244,9 +258,9 @@ public class WifiP2pAdmin {
             String action = intent.getAction();
             if (WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION.equals(action)) {
                 //确定Wi-Fi Direct模式是否已经启用
-                int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1);
+                int state = intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, WifiP2pManager.WIFI_P2P_STATE_DISABLED);
                 if (peerCallback != null) {
-                    peerCallback.onStateChanged(state == WifiP2pManager.WIFI_P2P_STATE_ENABLED);
+                    peerCallback.onStateChanged(state);
                 }
             } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
                 if (peerCallback != null) {
@@ -258,9 +272,15 @@ public class WifiP2pAdmin {
                     peerCallback.onConnectionChanged(networkInfo);
                 }
             } else if (WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION.equals(action)) {
-
+                WifiP2pDevice device = (WifiP2pDevice) intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE);
+                if (peerCallback != null) {
+                    peerCallback.onThisDeviceChanged(device);
+                }
             } else if (WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION.equals(action)) {
-
+                int state = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED);
+                if (peerCallback != null) {
+                    peerCallback.onDiscoveryChanged(state);
+                }
             }
         }
     }
