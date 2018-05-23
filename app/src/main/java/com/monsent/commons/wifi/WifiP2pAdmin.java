@@ -26,6 +26,8 @@ public class WifiP2pAdmin {
         void onRemoveGroup(boolean success);
 
         void onConnect(boolean success);
+
+        void onCancelConnect(boolean success);
     }
 
     public interface PeerCallback {
@@ -218,6 +220,27 @@ public class WifiP2pAdmin {
             public void onFailure(int reason) {
                 if (channelCallback != null) {
                     channelCallback.onConnect(false);
+                }
+            }
+        });
+    }
+
+    /**
+     * 取消连接
+     */
+    public void cancelConnect() {
+        manager.cancelConnect(channel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                if (channelCallback != null) {
+                    channelCallback.onCancelConnect(true);
+                }
+            }
+
+            @Override
+            public void onFailure(int i) {
+                if (channelCallback != null) {
+                    channelCallback.onCancelConnect(false);
                 }
             }
         });
