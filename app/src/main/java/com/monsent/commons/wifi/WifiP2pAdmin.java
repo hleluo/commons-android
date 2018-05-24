@@ -207,7 +207,9 @@ public class WifiP2pAdmin {
         WifiP2pConfig config = new WifiP2pConfig();
         config.deviceAddress = address;
         config.wps.setup = WpsInfo.PBC;
-        config.groupOwnerIntent = groupOwnerIntent;
+        if (groupOwnerIntent > 0) {
+            config.groupOwnerIntent = groupOwnerIntent;
+        }
         manager.connect(channel, config, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() {
@@ -223,6 +225,15 @@ public class WifiP2pAdmin {
                 }
             }
         });
+    }
+
+    /**
+     * 连接对等点
+     *
+     * @param address 对等点地址
+     */
+    public void connect(String address) {
+        connect(address, -1);
     }
 
     /**

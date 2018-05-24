@@ -9,7 +9,7 @@ import java.lang.reflect.Method;
 /**
  * 蓝牙2.0配对函数
  */
-public class ClsUtils {
+public class BtClsUtils {
 
     /**
      * 与设备配对 参考源码：platform/packages/apps/Settings.git
