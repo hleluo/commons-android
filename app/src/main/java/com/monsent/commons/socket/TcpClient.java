@@ -20,7 +20,7 @@ public class TcpClient {
 
     private final static long MAX_NO_DATA_SECOND = 30 * 60L;    //最长未接收数据断开连接时长
     private Socket socket;
-    private long lastTime = 0L;     //最后接收数据时间
+    private long lastReadTime = 0L;     //最后接收数据时间
     private boolean readable = false;
     private Thread threadRead, threadConnect;
     private OutputStream os = null;
@@ -51,7 +51,7 @@ public class TcpClient {
                     socket.setTcpNoDelay(true);
                     socket.setSoLinger(false, -1);
                     socket.setSoTimeout(10000);
-                    lastTime = System.currentTimeMillis();
+                    lastReadTime = System.currentTimeMillis();
                     //启动读线程
                     startRead();
                     if (callback != null) {
@@ -99,7 +99,7 @@ public class TcpClient {
                             }
                         } else {
                             //{MAX_NO_DATA_SECOND}未收到任何数据，关闭连接
-                            if (System.currentTimeMillis() - lastTime > MAX_NO_DATA_SECOND * 1000) {
+                            if (System.currentTimeMillis() - lastReadTime > MAX_NO_DATA_SECOND * 1000) {
                                 disconnect();
                                 if (callback != null) {
                                     callback.onDisconnect();
@@ -195,7 +195,7 @@ public class TcpClient {
      * 关闭socket
      */
     private void closeSocket() {
-        lastTime = 0L;
+        lastReadTime = 0L;
         if (socket != null) {
             try {
                 socket.close();

@@ -1,6 +1,7 @@
 package com.monsent.commons.util;
 
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.util.Log;
 
 import java.lang.reflect.Field;
@@ -74,12 +75,23 @@ public class BtClsUtils {
      * 确认配对
      *
      * @param device
-     * @param isConfirm
+     * @param confirmed
      * @return
      */
-    public boolean setPairingConfirmation(Class<? extends BluetoothDevice> btClass, BluetoothDevice device, boolean isConfirm) throws Exception {
+    public static boolean setPairingConfirmation(Class<? extends BluetoothDevice> btClass, BluetoothDevice device, boolean confirmed) throws Exception {
         Method setPairingConfirmationMethod = btClass.getDeclaredMethod("setPairingConfirmation", boolean.class);
-        return (Boolean) setPairingConfirmationMethod.invoke(device, isConfirm);
+        return (Boolean) setPairingConfirmationMethod.invoke(device, confirmed);
+    }
+
+    /**
+     * 创建socket
+     *
+     * @param device
+     * @return
+     */
+    public static BluetoothSocket createRfcommSocket(Class<? extends BluetoothDevice> btClass, BluetoothDevice device) throws Exception {
+        Method createRfcommSocketMethod = btClass.getMethod("createRfcommSocket", new Class[]{int.class});
+        return (BluetoothSocket) createRfcommSocketMethod.invoke(device, 1);
     }
 
     /**
