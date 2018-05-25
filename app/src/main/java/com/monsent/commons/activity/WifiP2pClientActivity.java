@@ -86,7 +86,11 @@ public class WifiP2pClientActivity extends AppCompatActivity implements WifiP2pA
     @Override
     protected void onDestroy() {
         if (wakeLock != null) {
-            wakeLock.release();
+            try {
+                wakeLock.release();
+            } catch (Exception e) {
+
+            }
             wakeLock = null;
         }
         super.onDestroy();

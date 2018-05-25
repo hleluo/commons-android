@@ -23,7 +23,7 @@ public class SystemUtils {
         PowerManager manager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         PowerManager.WakeLock wakeLock = null;
         if (manager != null) {
-            String tag = UUID.randomUUID().toString();
+            String tag = UUID.randomUUID().toString().replaceAll("-", "");
             wakeLock = manager.newWakeLock(flags, tag);
             wakeLock.acquire(3000);
         }

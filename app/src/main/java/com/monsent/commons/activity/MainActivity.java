@@ -7,7 +7,10 @@ import android.view.View;
 import android.widget.Button;
 
 import com.monsent.commons.R;
-import com.monsent.commons.util.SystemUtils;
+import com.monsent.commons.util.LogUtils;
+import com.monsent.commons.util.TimeUtils;
+
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -19,7 +22,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        SystemUtils.setWifiDormancy(this);
+//        SystemUtils.setWifiDormancy(this);
 
         btnWifiP2pServer = (Button) findViewById(R.id.btnWifiP2pServer);
         btnWifiP2pServer.setOnClickListener(this);
@@ -32,6 +35,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         btnBluetoothClient = (Button) findViewById(R.id.btnBluetoothClient);
         btnBluetoothClient.setOnClickListener(this);
+
+        LogUtils.i(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
     }
 
     @Override
@@ -56,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onDestroy() {
-        SystemUtils.restoreWifiDormancy(this);
+//        SystemUtils.restoreWifiDormancy(this);
         super.onDestroy();
     }
 }
