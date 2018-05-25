@@ -4,7 +4,6 @@ import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.os.Bundle;
-import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.AdapterView;
@@ -14,7 +13,6 @@ import android.widget.SimpleAdapter;
 import com.monsent.commons.R;
 import com.monsent.commons.socket.TcpClient;
 import com.monsent.commons.util.LogUtils;
-import com.monsent.commons.util.SystemUtils;
 import com.monsent.commons.util.TimeUtils;
 import com.monsent.commons.util.ToastUtils;
 import com.monsent.commons.wifi.WifiP2pAdmin;
@@ -25,9 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class WifiP2pClientActivity extends AppCompatActivity implements WifiP2pAdmin.PeerCallback, TcpClient.Callback {
-
-    private PowerManager.WakeLock wakeLock;
+public class BluetoothClientActivity extends AppCompatActivity implements WifiP2pAdmin.PeerCallback, TcpClient.Callback {
 
     private List<Map<String, Object>> dataDevices;
     private SimpleAdapter adapter;
@@ -43,8 +39,6 @@ public class WifiP2pClientActivity extends AppCompatActivity implements WifiP2pA
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_wifip2p_client);
-
-        wakeLock = SystemUtils.setKeepCpuRunning(this);
 
         dataDevices = new ArrayList<>();
         lvDevice = (ListView) findViewById(R.id.lvDevice);
@@ -84,16 +78,9 @@ public class WifiP2pClientActivity extends AppCompatActivity implements WifiP2pA
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (wakeLock != null) {
-            wakeLock.release();
-        }
-    }
-
-    @Override
     public void onConnect() {
         LogUtils.d("Wifi P2P Client：onConnect");
+        repeatTimes = 0;
         tcpClient.write(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
     }
 

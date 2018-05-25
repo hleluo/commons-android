@@ -1,12 +1,14 @@
 package com.monsent.commons.activity;
 
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
 
 import com.monsent.commons.R;
 import com.monsent.commons.socket.TcpServer;
 import com.monsent.commons.util.LogUtils;
+import com.monsent.commons.util.SystemUtils;
 import com.monsent.commons.util.TimeUtils;
 import com.monsent.commons.wifi.WifiP2pAdmin;
 
@@ -15,6 +17,8 @@ import java.net.Socket;
 public class WifiP2pServerActivity extends AppCompatActivity implements WifiP2pAdmin.ChannelCallback, TcpServer.Callback {
 
     private TextView txtMessage;
+
+    private PowerManager.WakeLock wakeLock;
 
     private WifiP2pAdmin wifiP2pAdmin;
     private TcpServer tcpServer;
@@ -26,6 +30,8 @@ public class WifiP2pServerActivity extends AppCompatActivity implements WifiP2pA
 
         txtMessage = (TextView) findViewById(R.id.txtMessage);
 
+        wakeLock = SystemUtils.setKeepCpuRunning(this);
+
         wifiP2pAdmin = new WifiP2pAdmin(this);
         wifiP2pAdmin.setChannelCallback(this);
         wifiP2pAdmin.initialize();
@@ -34,6 +40,14 @@ public class WifiP2pServerActivity extends AppCompatActivity implements WifiP2pA
         tcpServer = new TcpServer();
         tcpServer.setCallback(this);
         tcpServer.startAccept(9999);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (wakeLock != null) {
+            wakeLock.release();
+        }
     }
 
     @Override

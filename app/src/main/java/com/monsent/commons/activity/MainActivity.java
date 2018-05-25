@@ -11,6 +11,7 @@ import com.monsent.commons.R;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Button btnWifiP2pServer, btnWifiP2pClient;
+    private Button btnBluetoothServer, btnBluetoothClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,6 +23,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         btnWifiP2pClient = (Button) findViewById(R.id.btnWifiP2pClient);
         btnWifiP2pClient.setOnClickListener(this);
+
+        btnBluetoothServer = (Button) findViewById(R.id.btnBluetoothServer);
+        btnBluetoothServer.setOnClickListener(this);
+
+        btnBluetoothClient = (Button) findViewById(R.id.btnBluetoothClient);
+        btnBluetoothClient.setOnClickListener(this);
     }
 
     @Override
@@ -33,6 +40,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.btnWifiP2pClient:
                 intent = new Intent(this, WifiP2pClientActivity.class);
+                break;
+            case R.id.btnBluetoothServer:
+                intent = new Intent(this, BluetoothServerActivity.class);
+                break;
+            case R.id.btnBluetoothClient:
+                intent = new Intent(this, BluetoothClientActivity.class);
                 break;
         }
         startActivity(intent);
