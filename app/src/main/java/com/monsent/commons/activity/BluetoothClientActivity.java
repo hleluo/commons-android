@@ -1,9 +1,8 @@
 package com.monsent.commons.activity;
 
-import android.net.NetworkInfo;
-import android.net.wifi.p2p.WifiP2pDevice;
-import android.net.wifi.p2p.WifiP2pInfo;
+import android.bluetooth.BluetoothDevice;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.AdapterView;
@@ -11,26 +10,23 @@ import android.widget.ListView;
 import android.widget.SimpleAdapter;
 
 import com.monsent.commons.R;
-import com.monsent.commons.socket.TcpClient;
+import com.monsent.commons.bluetooth.BluetoothClient;
+import com.monsent.commons.util.BluetoothUtils;
 import com.monsent.commons.util.LogUtils;
 import com.monsent.commons.util.TimeUtils;
-import com.monsent.commons.util.ToastUtils;
-import com.monsent.commons.wifi.WifiP2pAdmin;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BluetoothClientActivity extends AppCompatActivity implements WifiP2pAdmin.PeerCallback, TcpClient.Callback {
+public class BluetoothClientActivity extends AppCompatActivity implements BluetoothClient.Callback {
 
     private List<Map<String, Object>> dataDevices;
     private SimpleAdapter adapter;
     private ListView lvDevice;
 
-    private WifiP2pAdmin wifiP2pAdmin;
-    private TcpClient tcpClient;
+    private BluetoothClient bluetoothClient;
     private String address = null;
     private final static int MAX_REPEAT_TIMES = 3;
     private int repeatTimes = 0;
@@ -49,39 +45,68 @@ public class BluetoothClientActivity extends AppCompatActivity implements WifiP2
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 String deviceAddress = (String) dataDevices.get(position).get("address");
-                wifiP2pAdmin.connect(deviceAddress, 15);
+                bluetoothClient.connect(deviceAddress, "00001101-0000-1000-8000-00805F9B34FB");
             }
         });
 
-        wifiP2pAdmin = new WifiP2pAdmin(this);
-        wifiP2pAdmin.setPeerCallback(this);
-        wifiP2pAdmin.initialize();
-        wifiP2pAdmin.removeGroup();
-
-
-        tcpClient = new TcpClient();
-        tcpClient.setCallback(this);
+        boolean enabled = BluetoothUtils.enable();
+        bluetoothClient = new BluetoothClient(this);
+        bluetoothClient.setCallback(this);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        wifiP2pAdmin.registerReceiver();
-        wifiP2pAdmin.discoverPeers();
+        bluetoothClient.registerReceiver();
+        bluetoothClient.startDiscovery();
     }
 
 
     @Override
     protected void onPause() {
         super.onPause();
-        wifiP2pAdmin.unregisterReceiver();
+        bluetoothClient.unregisterReceiver();
+    }
+
+
+    @Override
+    public void onDiscoveryStarted() {
+        dataDevices.clear();
+        LogUtils.e("onDiscoveryStarted");
     }
 
     @Override
-    public void onConnect() {
-        LogUtils.d("Wifi P2P Client：onConnect");
+    public void onDeviceDiscovered(BluetoothDevice device) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", device.getName());
+        map.put("address", device.getAddress());
+        if (device.getUuids() != null) {
+            for (ParcelUuid uuid : device.getUuids()) {
+                LogUtils.e("onDeviceDiscovered：" + uuid.getUuid().toString());
+            }
+        }
+        dataDevices.add(map);
+    }
+
+    @Override
+    public void onDiscoveryFinished() {
+        LogUtils.e("onDiscoveryFinished");
+    }
+
+    @Override
+    public void onBondStateChanged(BluetoothDevice device) {
+
+    }
+
+    @Override
+    public void onDevicePairingRequest(BluetoothDevice device) {
+
+    }
+
+    @Override
+    public void onConnect(BluetoothDevice device) {
+        address = device.getAddress();
         repeatTimes = 0;
-        tcpClient.write(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
     }
 
     @Override
@@ -89,7 +114,7 @@ public class BluetoothClientActivity extends AppCompatActivity implements WifiP2
         try {
             if (bytes.length > 0) {
                 LogUtils.i("onReceive：" + new String(bytes));
-                tcpClient.write(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
+                bluetoothClient.write(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
             }
             Thread.sleep(1000);
         } catch (Exception e) {
@@ -99,69 +124,16 @@ public class BluetoothClientActivity extends AppCompatActivity implements WifiP2
 
     @Override
     public void onDisconnect() {
-        LogUtils.d("Wifi P2P Client：onDisconnect");
+        LogUtils.d("Bluetooth Client：onDisconnect");
         if (repeatTimes <= MAX_REPEAT_TIMES) {
-            tcpClient.connect(address, 9999);
+            bluetoothClient.connect(address, "00001101-0000-1000-8000-00805F9B34FB");
             repeatTimes++;
         }
     }
 
     @Override
     public void onError(Exception e) {
+        e.printStackTrace();
         LogUtils.e("onError：" + e.getMessage());
-    }
-
-    @Override
-    public void onStateChanged(int state) {
-
-    }
-
-    @Override
-    public void onDiscoveryChanged(int state) {
-
-    }
-
-    @Override
-    public void onThisDeviceChanged(WifiP2pDevice device) {
-
-    }
-
-    @Override
-    public void onPeersChanged() {
-        wifiP2pAdmin.requestPeers();
-    }
-
-    @Override
-    public void onConnectionChanged(NetworkInfo networkInfo) {
-        if (networkInfo.isConnected()) {
-            ToastUtils.show(this, "连接成功");
-            wifiP2pAdmin.requestConnectionInfo();
-        } else {
-            ToastUtils.show(this, "状态：" + networkInfo.getState().name());
-        }
-    }
-
-    @Override
-    public void onPeersAvailable(Collection<WifiP2pDevice> devices) {
-        dataDevices.clear();
-        for (WifiP2pDevice device : devices) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("name", device.deviceName);
-            map.put("address", device.deviceAddress);
-            LogUtils.i("onPeersAvailable：" + device.deviceName + " : " + device.deviceAddress);
-            dataDevices.add(map);
-        }
-        adapter.notifyDataSetChanged();
-    }
-
-    @Override
-    public void onConnectionInfoAvailable(WifiP2pInfo info) {
-        if (info.groupFormed && info.isGroupOwner) {
-            LogUtils.i("groupFormed：" + info.groupOwnerAddress.getHostAddress());
-        } else if (info.groupFormed) {
-            address = info.groupOwnerAddress.getHostAddress();
-            LogUtils.i("groupOwnerAddress：" + address);
-            tcpClient.connect(address, 9999);
-        }
     }
 }

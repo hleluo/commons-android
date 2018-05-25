@@ -53,7 +53,7 @@ public class BluetoothClient {
          */
         void onDevicePairingRequest(BluetoothDevice device);
 
-        void onConnect();
+        void onConnect(BluetoothDevice device);
 
         void onReceive(byte[] bytes);
 
@@ -300,7 +300,7 @@ public class BluetoothClient {
                     socket.connect();
                     startRead();
                     if (callback != null) {
-                        callback.onConnect();
+                        callback.onConnect(device);
                     }
                 } catch (Exception e) {
                     handleError(e);

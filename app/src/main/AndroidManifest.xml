@@ -37,6 +37,9 @@
         <activity android:name=".activity.WifiP2pServerActivity" />
         <activity android:name=".activity.WifiP2pClientActivity" />
 
+        <activity android:name=".activity.BluetoothServerActivity" />
+        <activity android:name=".activity.BluetoothClientActivity" />
+
     </application>
 
 </manifest>
