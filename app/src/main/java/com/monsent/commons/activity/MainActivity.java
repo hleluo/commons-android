@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 
 import com.monsent.commons.R;
+import com.monsent.commons.util.SystemUtils;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -17,6 +18,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        SystemUtils.setWifiDormancy(this);
 
         btnWifiP2pServer = (Button) findViewById(R.id.btnWifiP2pServer);
         btnWifiP2pServer.setOnClickListener(this);
@@ -49,5 +52,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
         }
         startActivity(intent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        SystemUtils.restoreWifiDormancy(this);
     }
 }
