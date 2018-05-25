@@ -43,7 +43,9 @@ public class TcpServer {
      */
     public void startAccept(final int port) {
         stopAccept();
+        //断开所有客户端
         disconnectAll();
+        //关闭服务端
         closeServerSocket();
         threadAccept = new Thread(new Runnable() {
             @Override
@@ -99,7 +101,7 @@ public class TcpServer {
                             if (size > 0) {
                                 mapSocket.get(socket).set(System.currentTimeMillis());
                                 byte[] bytes = new byte[size];
-                                is.read(bytes);
+                                size = is.read(bytes);
                                 if (callback != null) {
                                     callback.onReceive(socket, bytes);
                                 }
@@ -107,20 +109,15 @@ public class TcpServer {
                                 //{MAX_NO_DATA_SECOND}未收到任何数据，关闭连接
                                 long lastTime = mapSocket.get(socket).get();
                                 if (System.currentTimeMillis() - lastTime > MAX_NO_DATA_SECOND * 1000) {
+                                    disconnect(socket);
                                     if (callback != null) {
                                         callback.onDisconnect(socket);
                                     }
-                                    disconnect(socket);
                                 }
                             }
                         } catch (IOException e) {
                             handleError(e);
                         }
-                    }
-                    try {
-                        Thread.sleep(100);
-                    } catch (Exception e) {
-
                     }
                 }
             }
@@ -164,11 +161,8 @@ public class TcpServer {
      * @return 是否写入成功
      */
     public boolean write(Socket socket, byte[] bytes, int off, int len) {
-        if (socket == null) {
+        if (socket == null || bytes == null) {
             return false;
-        }
-        if (bytes == null) {
-            return true;
         }
         try {
             os = socket.getOutputStream();
@@ -189,7 +183,7 @@ public class TcpServer {
      * @return 是否写入成功
      */
     public boolean write(Socket socket, byte[] bytes) {
-        return write(socket, bytes, 0, bytes.length);
+        return bytes != null && write(socket, bytes, 0, bytes.length);
     }
 
     /**
@@ -222,7 +216,7 @@ public class TcpServer {
      * @param bytes 字节数组
      */
     public void broadcast(byte[] bytes) {
-        broadcast(bytes, 0, bytes.length);
+        broadcast(bytes, 0, bytes == null ? 0 : bytes.length);
     }
 
     /**
@@ -250,6 +244,7 @@ public class TcpServer {
         } catch (IOException e) {
             handleError(e);
         }
+        socket = null;
     }
 
     /**

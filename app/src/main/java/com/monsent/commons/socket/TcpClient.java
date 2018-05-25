@@ -19,8 +19,8 @@ public class TcpClient {
     }
 
     private final static long MAX_NO_DATA_SECOND = 30 * 60L;    //最长未接收数据断开连接时长
-    private Socket socket;
     private long lastReadTime = 0L;     //最后接收数据时间
+    private Socket socket;
     private boolean readable = false;
     private Thread threadRead, threadConnect;
     private OutputStream os = null;
@@ -93,7 +93,7 @@ public class TcpClient {
                         int size = is.available();
                         if (size > 0) {
                             byte[] bytes = new byte[size];
-                            is.read(bytes);
+                            size = is.read(bytes);
                             if (callback != null) {
                                 callback.onReceive(bytes);
                             }
@@ -108,11 +108,6 @@ public class TcpClient {
                         }
                     } catch (IOException e) {
                         handleError(e);
-                    }
-                    try {
-                        Thread.sleep(100);
-                    } catch (Exception e) {
-
                     }
                 }
             }
@@ -136,7 +131,7 @@ public class TcpClient {
      *
      * @return 是否关闭
      */
-    private boolean isSocketClosed() {
+    private boolean isServerSocketClosed() {
         try {
             socket.sendUrgentData(0xFF);
             return false;
@@ -154,11 +149,8 @@ public class TcpClient {
      * @return 是否成功
      */
     public boolean write(byte[] bytes, int off, int len) {
-        if (socket == null) {
+        if (socket == null || bytes == null) {
             return false;
-        }
-        if (bytes == null) {
-            return true;
         }
         try {
             os = socket.getOutputStream();
@@ -178,7 +170,7 @@ public class TcpClient {
      * @return 是否成功
      */
     public boolean write(byte[] bytes) {
-        return write(bytes, 0, bytes.length);
+        return write(bytes, 0, bytes == null ? 0 : bytes.length);
     }
 
     /**

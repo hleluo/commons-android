@@ -106,17 +106,17 @@ public class BluetoothServer {
                         if (size > 0) {
                             lastReadTime = System.currentTimeMillis();
                             byte[] bytes = new byte[size];
-                            is.read(bytes);
+                            size = is.read(bytes);
                             if (callback != null) {
                                 callback.onReceive(socket, bytes);
                             }
                         } else {
                             //{MAX_NO_DATA_SECOND}未收到任何数据，关闭连接
                             if (System.currentTimeMillis() - lastReadTime > MAX_NO_DATA_SECOND * 1000) {
+                                disconnect();
                                 if (callback != null) {
                                     callback.onDisconnect(socket);
                                 }
-                                disconnect();
                             }
                         }
                     } catch (Exception e) {
@@ -202,38 +202,38 @@ public class BluetoothServer {
     /**
      * 写数据
      *
-     * @param data 数据
+     * @param message 数据
      * @return 是否成功
      */
-    public boolean write(String data) {
-        return data != null && write(data.getBytes());
+    public boolean write(String message) {
+        return message != null && write(message.getBytes());
     }
 
     /**
      * 写数据
      *
-     * @param data 字节数组
+     * @param bytes 字节数组
      * @return 是否成功
      */
-    public boolean write(byte[] data) {
-        return write(data, 0, data.length);
+    public boolean write(byte[] bytes) {
+        return write(bytes, 0, bytes == null ? 0 : bytes.length);
     }
 
     /**
      * 写数据
      *
-     * @param data 字节数组
+     * @param bytes 字节数组
      * @param off  起始位
      * @param len  长度
      * @return 是否成功
      */
-    public boolean write(byte[] data, int off, int len) {
-        if (socket == null || data == null) {
+    public boolean write(byte[] bytes, int off, int len) {
+        if (socket == null || bytes == null) {
             return false;
         }
         try {
             os = socket.getOutputStream();
-            os.write(data, off, len);
+            os.write(bytes, off, len);
             os.flush();
             return true;
         } catch (Exception e) {

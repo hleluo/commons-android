@@ -311,9 +311,11 @@ public class WifiP2pAdmin {
                     peerCallback.onThisDeviceChanged(device);
                 }
             } else if (WifiP2pManager.WIFI_P2P_DISCOVERY_CHANGED_ACTION.equals(action)) {
-                int state = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED);
-                if (peerCallback != null) {
-                    peerCallback.onDiscoveryChanged(state);
+                if (Build.VERSION.SDK_INT >= 16) {
+                    int state = intent.getIntExtra(WifiP2pManager.EXTRA_DISCOVERY_STATE, WifiP2pManager.WIFI_P2P_DISCOVERY_STOPPED);
+                    if (peerCallback != null) {
+                        peerCallback.onDiscoveryChanged(state);
+                    }
                 }
             }
         }

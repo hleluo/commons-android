@@ -8,10 +8,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
-import android.os.Message;
 
 import com.monsent.commons.util.BtClsUtils;
-import com.mosent.cleaner.util.LogUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +25,34 @@ public class BluetoothClient {
 
     public interface Callback {
 
+        /**
+         * 扫描开始
+         */
+        void onDiscoveryStarted();
+
+        /**
+         * 扫描到设备
+         *
+         * @param device 设备信息
+         */
+        void onDeviceDiscovered(BluetoothDevice device);
+
+        void onDiscoveryFinished();
+
+        /**
+         * 绑定状态改变
+         *
+         * @param device 设备信息
+         */
+        void onBondStateChanged(BluetoothDevice device);
+
+        /**
+         * 设备配对请求，PIN码一般为0000或1234
+         *
+         * @param device 设备，setPairingConfirmation、createBond、setPin、cancelPairingUserInput
+         */
+        void onDevicePairingRequest(BluetoothDevice device);
+
         void onConnect();
 
         void onReceive(byte[] bytes);
@@ -36,15 +62,17 @@ public class BluetoothClient {
         void onError(Exception e);
     }
 
+    private final static long MAX_NO_DATA_SECOND = 30 * 60L;    //最长未接收数据断开连接时长
+    private long lastReadTime = 0L;     //最后接收数据时间
     private Context context;
     private BluetoothAdapter adapter;
-    private BluetoothSocket bluetoothSocket;
+    private BluetoothSocket socket;
     private BluetoothReceiver receiver;
     private Callback callback;
     private boolean readable = false;
     private Thread threadConnect, threadRead;
-    private InputStream inputStream = null;
-    private OutputStream outputStream = null;
+    private InputStream is = null;
+    private OutputStream os = null;
 
     public BluetoothClient(Context context) {
         this.context = context;
@@ -199,7 +227,7 @@ public class BluetoothClient {
      *
      * @return 设备列表
      */
-    public Set<BluetoothDevice> getBondedDevices() {
+    public Set<BluetoothDevice> getAllBond() {
         return adapter.getBondedDevices();
     }
 
@@ -209,7 +237,7 @@ public class BluetoothClient {
      * @param device 设备
      * @return 是否已配对
      */
-    public boolean isDeviceBounded(BluetoothDevice device) {
+    public boolean isBounded(BluetoothDevice device) {
         if (device == null) {
             return false;
         }
@@ -225,90 +253,10 @@ public class BluetoothClient {
     /**
      * 解除所有配对的设备
      */
-    public void removeAllBondedDevices() {
+    public void removeAllBond() {
         Set<BluetoothDevice> bondedDevices = adapter.getBondedDevices();
         for (BluetoothDevice device : bondedDevices) {
             removeBond(device);
-        }
-    }
-
-    //连接线程
-    private class ConnectThread extends Thread {
-
-        private String address;
-        private String uuid;
-
-        public ConnectThread(String address, String uuid) {
-            this.address = address;
-            this.uuid = uuid;
-        }
-
-        @Override
-        public void run() {
-            if (adapter == null) {
-                return;
-            }
-            BluetoothDevice bluetoothDevice = null;
-            try {
-//                Thread.sleep(200);
-                bluetoothDevice = adapter.getRemoteDevice(address);
-                //创建一个Socket连接：只需要服务器在注册时的UUID号
-                final int sdk = Build.VERSION.SDK_INT;
-                if (sdk >= 10) {
-                    bluetoothSocket = bluetoothDevice.createInsecureRfcommSocketToServiceRecord(UUID.fromString(uuid));
-                } else {
-                    bluetoothSocket = bluetoothDevice.createRfcommSocketToServiceRecord(UUID.fromString(uuid));
-                }
-//                bluetoothSocket =(BluetoothSocket) bluetoothDevice.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(bluetoothDevice,1);
-                bluetoothSocket.connect();
-                conntecedAddress = address;
-                LogUtils.i(TAG, "Bluetooth onConnected");
-                if (bluetoothCallback != null) {
-                    //启动读数据
-                    if (readThread == null) {
-                        readThread = new ReadThread();
-                    }
-                    readThread.start();
-                    if (handlerConnect != null) {
-                        Message message = handlerConnect.obtainMessage();
-                        message.what = STATE_SUCCESS;
-                        message.obj = bluetoothDevice;
-                        handlerConnect.sendMessage(message);
-                    }
-                }
-            } catch (Exception e) {
-                if (bluetoothCallback != null && handlerConnect != null) {
-                    Message message = handlerConnect.obtainMessage();
-                    message.what = STATE_FAILURE;
-                    message.obj = bluetoothDevice;
-                    handlerConnect.sendMessage(message);
-                }
-            }
-        }
-    }
-
-    //读线程
-    private class ReadThread extends Thread {
-
-        @Override
-        public void run() {
-            try {
-                inputStream = bluetoothSocket.getInputStream();
-                while (readAvailable) {
-                    if (inputStream != null && bluetoothCallback != null) {
-                        bluetoothCallback.onDataArrived(inputStream);
-                    }
-                }
-            } catch (Exception e) {
-            } finally {
-                if (inputStream != null) {
-                    try {
-                        inputStream.close();
-                    } catch (Exception e) {
-                    }
-                }
-            }
-
         }
     }
 
@@ -325,8 +273,8 @@ public class BluetoothClient {
     /**
      * 连接设备
      *
-     * @param address
-     * @param uuid
+     * @param address 地址
+     * @param uuid    uuid
      */
     public void connect(final String address, final String uuid) {
         stopConnect();
@@ -345,11 +293,11 @@ public class BluetoothClient {
                     //创建一个Socket连接：只需要服务器在注册时的UUID号
                     final int sdk = Build.VERSION.SDK_INT;
                     if (sdk >= 10) {
-                        bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(UUID.fromString(uuid));
+                        socket = device.createInsecureRfcommSocketToServiceRecord(UUID.fromString(uuid));
                     } else {
-                        bluetoothSocket = device.createRfcommSocketToServiceRecord(UUID.fromString(uuid));
+                        socket = device.createRfcommSocketToServiceRecord(UUID.fromString(uuid));
                     }
-                    bluetoothSocket.connect();
+                    socket.connect();
                     startRead();
                     if (callback != null) {
                         callback.onConnect();
@@ -365,6 +313,9 @@ public class BluetoothClient {
         threadConnect.start();
     }
 
+    /**
+     * 停止连接
+     */
     private void stopConnect() {
         if (threadConnect != null && !threadConnect.isInterrupted()) {
             threadConnect.interrupt();
@@ -372,10 +323,46 @@ public class BluetoothClient {
         threadConnect = null;
     }
 
+    /**
+     * 启动读数据
+     */
     private void startRead() {
         stopRead();
+        threadRead = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                readable = true;
+                while (readable) {
+                    try {
+                        is = socket.getInputStream();
+                        int size = is.available();
+                        if (size > 0) {
+                            byte[] bytes = new byte[size];
+                            size = is.read(bytes);
+                            if (callback != null) {
+                                callback.onReceive(bytes);
+                            }
+                        } else {
+                            //{MAX_NO_DATA_SECOND}未收到任何数据，关闭连接
+                            if (System.currentTimeMillis() - lastReadTime > MAX_NO_DATA_SECOND * 1000) {
+                                disconnect();
+                                if (callback != null) {
+                                    callback.onDisconnect();
+                                }
+                            }
+                        }
+                    } catch (IOException e) {
+                        handleError(e);
+                    }
+                }
+            }
+        });
+        threadRead.start();
     }
 
+    /**
+     * 停止读数据
+     */
     private void stopRead() {
         readable = false;
         if (threadRead != null && !threadRead.isInterrupted()) {
@@ -384,126 +371,86 @@ public class BluetoothClient {
         threadRead = null;
     }
 
+    /**
+     * 关闭数据流
+     */
     public void closeStream() {
-        if (outputStream != null) {
+        if (os != null) {
             try {
-                outputStream.close();
+                os.close();
             } catch (Exception e) {
                 handleError(e);
             }
         }
-        if (inputStream != null) {
+        if (is != null) {
             try {
-                inputStream.close();
+                is.close();
             } catch (Exception e) {
                 handleError(e);
             }
         }
     }
 
+    /**
+     * 关闭socket
+     */
     private void closeSocket() {
-        if (bluetoothSocket != null) {
+        if (socket != null) {
             try {
-                bluetoothSocket.close();
+                socket.close();
             } catch (IOException e) {
                 handleError(e);
             }
         }
-        bluetoothSocket = null;
-    }
-
-
-    /**
-     * 关闭资源
-     */
-    public synchronized void dispose() {
-        if (outputStream != null) {
-            try {
-                outputStream.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        if (inputStream != null) {
-            try {
-                inputStream.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        if (bluetoothSocket != null) {
-            try {
-                bluetoothSocket.close();
-                bluetoothSocket = null;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        readAvailable = false;
-        if (readThread != null) {
-            try {
-                readThread.interrupt();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            readThread = null;
-        }
-        conntecedAddress = null;
+        socket = null;
     }
 
     /**
      * 断开连接
      */
-    public synchronized void disconnect() {
-        dispose();
-        if (bluetoothCallback != null) {
-            bluetoothCallback.onDisconnected();
-        }
-    }
-
-    /**
-     * 释放连接
-     */
-    public void close() {
-        dispose();
-        if (context != null && receiver != null) {
-            context.unregisterReceiver(receiver);
-        }
+    public void disconnect() {
+        stopConnect();
+        stopRead();
+        closeStream();
+        closeSocket();
     }
 
     /**
      * 写数据
      *
-     * @param data
+     * @param message 数据
+     * @return 是否成功
      */
-    public boolean write(String data) {
-        return data == null ? false : write(data.getBytes());
+    public boolean write(String message) {
+        return message != null && write(message.getBytes());
     }
 
     /**
      * 写数据
      *
-     * @param data
+     * @param bytes 字节数组
+     * @return 是否成功
      */
-    public boolean write(byte[] data) {
-        return data == null ? false : write(data, 0, data.length);
+    public boolean write(byte[] bytes) {
+        return write(bytes, 0, bytes == null ? 0 : bytes.length);
     }
 
     /**
      * 写数据
      *
-     * @param data
-     * @param off
-     * @param len
+     * @param bytes 字节数组
+     * @param off   起始
+     * @param len   长度
+     * @return 是否成功
      */
-    public boolean write(byte[] data, int off, int len) {
-        if (bluetoothSocket == null || data == null || data.length == 0) {
+    public boolean write(byte[] bytes, int off, int len) {
+        if (socket == null || bytes == null) {
             return false;
         }
         try {
-            outputStream = bluetoothSocket.getOutputStream();
-            outputStream.write(data, off, len);
-            outputStream.flush();
+            os = socket.getOutputStream();
+            os.write(bytes, off, len);
+            os.flush();
             return true;
         } catch (Exception e) {
             return false;
@@ -531,43 +478,27 @@ public class BluetoothClient {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(action)) {
-                LogUtils.i(TAG, "Bluetooth onDiscoveryStarted.");
-                if (bluetoothCallback != null) {
-                    bluetoothCallback.onDiscoveryStarted();
+                if (callback != null) {
+                    callback.onDiscoveryStarted();
                 }
             } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                LogUtils.i(TAG, "Bluetooth onDeviceDiscovered.");
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                if (bluetoothCallback != null) {
-                    bluetoothCallback.onDeviceDiscovered(device);
+                if (callback != null) {
+                    callback.onDeviceDiscovered(device);
                 }
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                LogUtils.i(TAG, "Bluetooth onDiscoveryFinished.");
-                if (bluetoothCallback != null) {
-                    bluetoothCallback.onDiscoveryFinished();
+                if (callback != null) {
+                    callback.onDiscoveryFinished();
                 }
             } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
                 BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                LogUtils.i(TAG, "Bluetooth onBondStateChanged.");
-                if (bluetoothCallback != null) {
-                    bluetoothCallback.onBondStateChanged(bluetoothDevice, bluetoothDevice.getBondState());
-                }
-                if (bluetoothDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
-                    LogUtils.i(TAG, "Bluetooth onDeviceBounded.");
-                    if (bluetoothCallback != null) {
-                        bluetoothCallback.onDeviceBonded(bluetoothDevice);
-                    }
-                } else if (bluetoothDevice.getBondState() == BluetoothDevice.BOND_NONE) {
-                    LogUtils.i(TAG, "Bluetooth onDeviceUnBond.");
-                    if (bluetoothCallback != null) {
-                        bluetoothCallback.onDeviceUnBond(bluetoothDevice);
-                    }
+                if (callback != null) {
+                    callback.onBondStateChanged(bluetoothDevice);
                 }
             } else if (BluetoothDevice.ACTION_PAIRING_REQUEST.equals(action)) {
                 BluetoothDevice bluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                LogUtils.i(TAG, "Bluetooth onDevicePairingRequest.");
-                if (bluetoothCallback != null) {
-                    bluetoothCallback.onDevicePairingRequest(bluetoothDevice, bluetoothDevice.getBondState());
+                if (callback != null) {
+                    callback.onDevicePairingRequest(bluetoothDevice);
                 }
             }
         }
