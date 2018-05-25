@@ -43,9 +43,14 @@ public class WifiP2pServerActivity extends AppCompatActivity implements WifiP2pA
 
     @Override
     public void onReceive(Socket socket, byte[] bytes) {
-        if (bytes.length > 0) {
-            LogUtils.i("onReceive：" + new String(bytes));
-            tcpServer.write(socket, TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
+        try {
+            if (bytes.length > 0) {
+                LogUtils.i("onReceive：" + new String(bytes));
+                tcpServer.write(socket, TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
+            }
+            Thread.sleep(1000);
+        } catch (Exception e) {
+
         }
     }
 

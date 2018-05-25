@@ -85,9 +85,14 @@ public class WifiP2pClientActivity extends AppCompatActivity implements WifiP2pA
 
     @Override
     public void onReceive(byte[] bytes) {
-        if (bytes.length > 0){
-            LogUtils.i("onReceive：" + new String(bytes));
-            tcpClient.write(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
+        try {
+            if (bytes.length > 0) {
+                LogUtils.i("onReceive：" + new String(bytes));
+                tcpClient.write(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
+            }
+            Thread.sleep(1000);
+        } catch (Exception e) {
+
         }
     }
 
@@ -151,7 +156,7 @@ public class WifiP2pClientActivity extends AppCompatActivity implements WifiP2pA
     @Override
     public void onConnectionInfoAvailable(WifiP2pInfo info) {
         if (info.groupFormed && info.isGroupOwner) {
-
+            LogUtils.i("groupFormed：" + info.groupOwnerAddress.getHostAddress());
         } else if (info.groupFormed) {
             address = info.groupOwnerAddress.getHostAddress();
             LogUtils.i("groupOwnerAddress：" + address);
