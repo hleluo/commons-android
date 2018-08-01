@@ -3,6 +3,7 @@ package com.monsent.commons.activity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.ScanResult;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -123,6 +124,11 @@ public class BleClientActivity extends AppCompatActivity implements BleClient.Ca
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
         txtMessage.append("连接状态改变：" + status + " / " + newState + "\r\n");
+        if (newState == BluetoothProfile.STATE_CONNECTED) {
+            txtMessage.append("连接成功：" + gatt.getDevice().getAddress() + "\r\n");
+        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            txtMessage.append("断开连接：" + gatt.getDevice().getAddress() + "\r\n");
+        }
     }
 
     @Override
