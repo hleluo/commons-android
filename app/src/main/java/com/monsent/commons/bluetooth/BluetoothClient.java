@@ -291,12 +291,10 @@ public class BluetoothClient {
                 try {
                     BluetoothDevice device = adapter.getRemoteDevice(address);
                     //创建一个Socket连接：只需要服务器在注册时的UUID号
-                    final int sdk = Build.VERSION.SDK_INT;
-                    if (sdk >= 10) {
-                        socket = device.createInsecureRfcommSocketToServiceRecord(UUID.fromString(uuid));
-                    } else {
-                        socket = device.createRfcommSocketToServiceRecord(UUID.fromString(uuid));
-                    }
+                    //加密传输，Android系统强制配对，弹窗显示配对码
+//                    socket = device.createInsecureRfcommSocketToServiceRecord(UUID.fromString(uuid));
+                    //明文传输(不安全)，无需配对
+                    socket = device.createRfcommSocketToServiceRecord(UUID.fromString(uuid));
                     socket.connect();
                     startRead();
                     if (callback != null) {
