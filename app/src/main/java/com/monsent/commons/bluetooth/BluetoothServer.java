@@ -62,7 +62,10 @@ public class BluetoothServer {
                 accepted = true;
                 while (accepted) {
                     try {
-                        serverSocket = adapter.listenUsingRfcommWithServiceRecord(name, UUID.fromString(uuid));
+                        //加密传输，Android强制执行配对，弹窗显示配对码
+//                        serverSocket = adapter.listenUsingRfcommWithServiceRecord(name, UUID.fromString(uuid));
+                        //明文传输(不安全)，无需配对
+                        serverSocket = adapter.listenUsingInsecureRfcommWithServiceRecord(name, UUID.fromString(uuid));
                         socket = serverSocket.accept();
                         accepted = false;
                         lastReadTime = System.currentTimeMillis();
@@ -223,8 +226,8 @@ public class BluetoothServer {
      * 写数据
      *
      * @param bytes 字节数组
-     * @param off  起始位
-     * @param len  长度
+     * @param off   起始位
+     * @param len   长度
      * @return 是否成功
      */
     public boolean write(byte[] bytes, int off, int len) {
