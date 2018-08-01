@@ -63,10 +63,7 @@ public class BleServer {
 
     public boolean initialize() {
         bluetoothManager = (BluetoothManager) this.context.getSystemService(Context.BLUETOOTH_SERVICE);
-        if (bluetoothManager == null) {
-            return false;
-        }
-        bluetoothAdapter = bluetoothManager.getAdapter();
+        bluetoothAdapter = bluetoothManager == null ? BluetoothAdapter.getDefaultAdapter() : bluetoothManager.getAdapter();
         if (bluetoothAdapter == null) {
             return false;
         }
