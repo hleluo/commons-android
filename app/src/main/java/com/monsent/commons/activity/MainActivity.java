@@ -1,6 +1,9 @@
 package com.monsent.commons.activity;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -9,8 +12,6 @@ import android.widget.Button;
 import com.monsent.commons.R;
 import com.monsent.commons.util.LogUtils;
 import com.monsent.commons.util.TimeUtils;
-
-import java.util.Date;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -37,6 +38,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnBluetoothClient.setOnClickListener(this);
 
         LogUtils.i(TimeUtils.getCurrentLocalDateStr(TimeUtils.yyyyMMddHHmmssSSS));
+
+        // 检查是否支持BLE蓝牙
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+            LogUtils.e("本机不支持低功耗蓝牙！");
+            finish();
+            return;
+        }
+
+        // Android 6.0动态请求权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
+            for (String str : permissions) {
+                if (checkSelfPermission(str) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(permissions, 111);
+                    break;
+                }
+            }
+        }
     }
 
     @Override
@@ -50,10 +69,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 intent = new Intent(this, WifiP2pClientActivity.class);
                 break;
             case R.id.btnBluetoothServer:
-                intent = new Intent(this, BluetoothServerActivity.class);
+                intent = new Intent(this, BleServerActivity.class);
                 break;
             case R.id.btnBluetoothClient:
-                intent = new Intent(this, BluetoothClientActivity.class);
+                intent = new Intent(this, BleClientActivity.class);
                 break;
         }
         startActivity(intent);

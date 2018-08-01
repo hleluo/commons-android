@@ -20,7 +20,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!--需要硬件支持低功耗蓝牙-->
-    <uses-feature android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <!--<uses-feature android:name="android.permission.BLUETOOTH_ADMIN"/>-->
 
     <application
         android:allowBackup="true"
@@ -42,6 +42,9 @@
 
         <activity android:name=".activity.BluetoothServerActivity" />
         <activity android:name=".activity.BluetoothClientActivity" />
+
+        <activity android:name=".activity.BleClientActivity" />
+        <activity android:name=".activity.BleServerActivity" />
 
     </application>
 
