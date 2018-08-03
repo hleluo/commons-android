@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.ScanResult;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -19,6 +21,7 @@ import android.widget.TextView;
 import com.monsent.commons.R;
 import com.monsent.commons.ble.BleClient;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +39,8 @@ public class BleClientActivity extends AppCompatActivity implements BleClient.Ca
     private List<Map<String, Object>> dataDevices;
     private SimpleAdapter adapter;
     private List<BluetoothDevice> devices;
+
+    private MessageHandler handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,9 +69,11 @@ public class BleClientActivity extends AppCompatActivity implements BleClient.Ca
         btnSend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                bleClient.writeCharacteristic(editMessage.getText().toString());
+                bleClient.writeToBuffer(editMessage.getText().toString());
             }
         });
+
+        handler = new MessageHandler(this);
 
         bleClient = new BleClient(this);
         bleClient.setCallback(this);
@@ -74,6 +81,24 @@ public class BleClientActivity extends AppCompatActivity implements BleClient.Ca
         if (!initialize) {
             txtMessage.append("初始化失败：" + "\r\n");
             finish();
+        }
+    }
+
+    private static class MessageHandler extends Handler {
+        private WeakReference<BleClientActivity> reference;
+
+        public MessageHandler(BleClientActivity activity) {
+            this.reference = new WeakReference<>(activity);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            BleClientActivity activity = reference.get();
+            if (msg.what == 1) {
+                String message = (String) msg.obj;
+                activity.txtMessage.append(message + "\r\n");
+            }
         }
     }
 
@@ -123,11 +148,11 @@ public class BleClientActivity extends AppCompatActivity implements BleClient.Ca
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-        txtMessage.append("连接状态改变：" + status + " / " + newState + "\r\n");
+        showMessage("连接状态改变：" + status + " / " + newState);
         if (newState == BluetoothProfile.STATE_CONNECTED) {
-            txtMessage.append("连接成功：" + gatt.getDevice().getAddress() + "\r\n");
+            showMessage("连接成功：" + gatt.getDevice().getAddress());
         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            txtMessage.append("断开连接：" + gatt.getDevice().getAddress() + "\r\n");
+            showMessage("断开连接：" + gatt.getDevice().getAddress());
         }
     }
 
@@ -163,13 +188,29 @@ public class BleClientActivity extends AppCompatActivity implements BleClient.Ca
     }
 
     @Override
-    public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-        if (status == BluetoothGatt.GATT_SUCCESS) {
-            byte[] bytes = characteristic.getValue();
-            String value = new String(bytes);
-            txtMessage.append("读取数据：" + characteristic.getUuid() + " / " + status + " / " + value + "\r\n");
-        }
-        SystemClock.sleep(100);
+    public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+        byte[] bytes = characteristic.getValue();
+        String value = new String(bytes);
+        showMessage("读取数据：" + characteristic.getUuid() + " / " + " / " + value);
+        SystemClock.sleep(3000);
         bleClient.readCharacteristic();
+    }
+
+    @Override
+    public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+//        if (status == BluetoothGatt.GATT_SUCCESS) {
+//            byte[] bytes = characteristic.getValue();
+//            String value = new String(bytes);
+//            showMessage("读取数据：" + characteristic.getUuid() + " / " + status + " / " + value);
+//        }
+        SystemClock.sleep(3000);
+        bleClient.readCharacteristic();
+    }
+
+    private void showMessage(String msg) {
+        Message message = new Message();
+        message.what = 1;
+        message.obj = msg;
+        handler.sendMessage(message);
     }
 }

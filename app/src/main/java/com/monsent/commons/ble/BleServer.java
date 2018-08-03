@@ -18,6 +18,7 @@ import android.os.Build;
 import android.os.ParcelUuid;
 import android.support.annotation.RequiresApi;
 
+import java.nio.ByteBuffer;
 import java.util.UUID;
 
 /**
@@ -215,11 +216,7 @@ public class BleServer {
     }
 
     public boolean write(BluetoothDevice device, int requestId, int offset, String value) {
-        try {
-            return bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value.getBytes());
-        } catch (Exception e) {
-            return false;
-        }
+        return value != null && write(device, requestId, offset, value.getBytes());
     }
 
     public boolean write(BluetoothDevice device, int requestId, int offset, byte[] bytes) {
@@ -229,4 +226,20 @@ public class BleServer {
             return false;
         }
     }
+
+    public boolean response(BluetoothDevice device, String value) {
+        return value != null && response(device, value.getBytes());
+    }
+
+    public boolean response(BluetoothDevice device, byte[] bytes) {
+        try {
+            BluetoothGattService service = bluetoothGattServer.getService(SERVICE_UUID);
+            BluetoothGattCharacteristic characteristic = service.getCharacteristic(CHARACTERISTIC_READ_UUID);
+            characteristic.setValue(bytes);
+            return bluetoothGattServer.notifyCharacteristicChanged(device, characteristic, false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
 }

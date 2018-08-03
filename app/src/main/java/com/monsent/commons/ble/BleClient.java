@@ -15,8 +15,11 @@ import android.content.Context;
 import android.os.Handler;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class BleClient {
 
@@ -33,6 +36,8 @@ public class BleClient {
 
         void onServicesDiscovered(BluetoothGatt gatt, int status);
 
+        void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic);
+
         void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status);
     }
 
@@ -40,12 +45,18 @@ public class BleClient {
     private static final UUID CHARACTERISTIC_READ_UUID = UUID.fromString("11000000-0000-0000-0000-000000000000");
     private static final UUID CHARACTERISTIC_WRITE_UUID = UUID.fromString("12000000-0000-0000-0000-000000000000");
     private static final UUID DESCRIPTOR_UUID = UUID.fromString("11100000-0000-0000-0000-000000000000");
+    private static final int MAX_PACKET_BYTE_LENGTH = 20;   //单词数据最大长度
+    private static final int MAX_WRITE_REPEAT_COUNT = 3;    //最大重复写次数
 
     private Context context;
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothGatt bluetoothGatt;
     private Handler handler;
+    private static Queue<byte[]> queue = new ConcurrentLinkedQueue<>();     //缓冲区队列
+    private Thread threadWrite;
+    private boolean buffered = false;       //是否启动缓冲写数据
+    private int currentRepeatCount = 0;     //当前重复次数
     private Callback callback;
 
     public BleClient(Context context) {
@@ -121,10 +132,19 @@ public class BleClient {
     }
 
     public void disconnect() {
+        closeThreadWrite();
         if (bluetoothGatt != null) {
             bluetoothGatt.disconnect();
             bluetoothGatt.close();
         }
+    }
+
+    private void closeThreadWrite() {
+        buffered = false;
+        if (threadWrite != null && !threadWrite.isInterrupted()) {
+            threadWrite.interrupt();
+        }
+        threadWrite = null;
     }
 
     public void enableNotification() {
@@ -161,6 +181,10 @@ public class BleClient {
     }
 
     public boolean writeCharacteristic(String value) {
+        return value != null && writeCharacteristic(value.getBytes());
+    }
+
+    public boolean writeCharacteristic(byte[] bytes) {
         BluetoothGattService service = bluetoothGatt.getService(SERVICE_UUID);
         if (service == null) {
             return false;
@@ -169,8 +193,68 @@ public class BleClient {
         if (characteristic == null) {
             return false;
         }
-        characteristic.setValue(value);
+        characteristic.setValue(bytes);
+        characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
         return bluetoothGatt.writeCharacteristic(characteristic);
+    }
+
+    private Runnable runnableWrite = new Runnable() {
+        @Override
+        public void run() {
+            while (buffered) {
+                try {
+                    if (queue.isEmpty()) {
+                        Thread.sleep(500);
+                    } else {
+                        byte[] packet = queue.peek();
+                        boolean b = writeCharacteristic(packet);
+                        if (b) {    //发送成功
+                            queue.poll();
+                            currentRepeatCount = 0;
+                        } else {    //发送失败
+                            if (currentRepeatCount >= MAX_WRITE_REPEAT_COUNT) {
+                                //重复发送MAX_WRITE_REPEAT_COUNT失败
+                                //终止
+                                queue.clear();
+                                currentRepeatCount = 0;
+                            }
+                            currentRepeatCount++;
+                        }
+                        Thread.sleep(200);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    };
+
+    public void writeToBuffer(String value) {
+        if (value != null) {
+            writeToBuffer(value.getBytes());
+        }
+    }
+
+    public void writeToBuffer(byte[] bytes) {
+        if (bytes != null && bytes.length > 0) {
+            int count = bytes.length % MAX_PACKET_BYTE_LENGTH;
+            count = count == 0 ? bytes.length / MAX_PACKET_BYTE_LENGTH : bytes.length / MAX_PACKET_BYTE_LENGTH + 1;
+            for (int i = 0; i < count; i++) {
+                int start = i * MAX_PACKET_BYTE_LENGTH;
+                int end = start + MAX_PACKET_BYTE_LENGTH - 1;
+                end = end > bytes.length - 1 ? bytes.length - 1 : end;
+                //包括下标from，不包括下标to
+                byte[] packet = Arrays.copyOfRange(bytes, start, end + 1);
+                queue.add(packet);
+            }
+        }
+        synchronized (this) {
+            if (threadWrite == null) {
+                buffered = true;
+                threadWrite = new Thread(runnableWrite);
+                threadWrite.start();
+            }
+        }
     }
 
     private void refreshDeviceCache(final BluetoothGatt gatt) {
@@ -232,6 +316,9 @@ public class BleClient {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicChanged(gatt, characteristic);
+            if (callback != null) {
+                callback.onCharacteristicChanged(gatt, characteristic);
+            }
         }
 
         @Override

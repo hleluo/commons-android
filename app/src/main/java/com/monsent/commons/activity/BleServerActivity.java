@@ -5,6 +5,8 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
@@ -14,6 +16,8 @@ import android.widget.TextView;
 import com.monsent.commons.R;
 import com.monsent.commons.ble.BleServer;
 
+import java.lang.ref.WeakReference;
+
 public class BleServerActivity extends AppCompatActivity implements BleServer.Callback {
 
     private TextView txtMessage;
@@ -21,6 +25,7 @@ public class BleServerActivity extends AppCompatActivity implements BleServer.Ca
     private Button btnSend;
 
     private BleServer bleServer;
+    private MessageHandler handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +42,8 @@ public class BleServerActivity extends AppCompatActivity implements BleServer.Ca
             }
         });
 
+        handler = new MessageHandler(this);
+
         bleServer = new BleServer(this);
         bleServer.setCallback(this);
         boolean initialize = bleServer.initialize();
@@ -44,6 +51,24 @@ public class BleServerActivity extends AppCompatActivity implements BleServer.Ca
             bleServer.startAdvertising();
         } else {
             txtMessage.append("初始化失败：" + "\r\n");
+        }
+    }
+
+    private static class MessageHandler extends Handler {
+        private WeakReference<BleServerActivity> reference;
+
+        public MessageHandler(BleServerActivity activity) {
+            this.reference = new WeakReference<>(activity);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            BleServerActivity activity = reference.get();
+            if (msg.what == 1) {
+                String message = (String) msg.obj;
+                activity.txtMessage.append(message + "\r\n");
+            }
         }
     }
 
@@ -55,34 +80,45 @@ public class BleServerActivity extends AppCompatActivity implements BleServer.Ca
 
     @Override
     public void onAdvertiseStart(boolean success) {
-        txtMessage.append("广播初始化：" + success + "\r\n");
+        showMessage("广播初始化：" + success);
     }
 
     @Override
     public void onServiceAdded(int status, BluetoothGattService service) {
-        txtMessage.append("服务添加：" + status + " / " + service.getUuid() + "\r\n");
+        showMessage("服务添加：" + status + " / " + service.getUuid());
     }
 
     @Override
     public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
         if (newState == BluetoothProfile.STATE_CONNECTED) {
-            txtMessage.append("连接成功：" + device.getName() + " / " + device.getAddress() + " / " + status + " / " + newState + "\r\n");
+            showMessage("连接成功：" + device.getName() + " / " + device.getAddress() + " / " + status + " / " + newState);
         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            txtMessage.append("断开连接：" + device.getName() + " / " + device.getAddress() + " / " + status + " / " + newState + "\r\n");
+            showMessage("断开连接：" + device.getName() + " / " + device.getAddress() + " / " + status + " / " + newState);
         }
     }
 
     @Override
     public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset, BluetoothGattCharacteristic characteristic) {
-        txtMessage.append("读数据请求：" + device.getName() + " / " + device.getAddress() + "\r\n");
+        showMessage("读数据请求：" + device.getName() + " / " + device.getAddress());
         String value = "OK_" + (int) (Math.random() * 100);   //模拟返回
         boolean result = bleServer.write(device, requestId, offset, value);
-        txtMessage.append("响应数据：" + device.getName() + " / " + device.getAddress() + " / " + result + " / " + value + "\r\n");
+        bleServer.response(device, value);
+        showMessage("响应数据：" + device.getName() + " / " + device.getAddress() + " / " + result + " / " + value);
     }
 
     @Override
     public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded, int offset, byte[] requestBytes) {
         String value = new String(requestBytes);
-        txtMessage.append("写数据请求：" + value + "\r\n");
+        showMessage("写数据请求：" + device.getAddress() + " / " + value);
+        boolean result = bleServer.write(device, requestId, offset, value);
+        bleServer.response(device, "OK_" + value);
+        showMessage("回复数据：" + device.getAddress() + " / " + value);
+    }
+
+    private void showMessage(String msg) {
+        Message message = new Message();
+        message.what = 1;
+        message.obj = msg;
+        handler.sendMessage(message);
     }
 }
